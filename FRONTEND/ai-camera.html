@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Camera - BiteScan</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background-color: #373737;
+      overflow: hidden;
+    }
+
+    .camera-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .camera-view {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background-color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .camera-preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #selectedImage {
+      display: none;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 2;
+    }
+
+    .close-button {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #d9534f;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 1.2rem;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      cursor: pointer;
+    }
+
+    .navigation-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #9bcfe2;
+      padding: 10px 0;
+      display: flex;
+      justify-content: space-evenly;
+      z-index: 4;
+    }
+
+    .nav-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      background-color: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .nav-button.active {
+      background-color: #000000;
+      color: white;
+    }
+
+    .nav-button:hover {
+      transform: scale(1.1);
+    }
+
+    .result-box {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: none;
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      width: 90%;
+    }
+
+    .result-box h4 {
+      margin-bottom: 10px;
+    }
+
+    .result-box .food-name {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .result-box .calories {
+      font-size: 1.25rem;
+      margin-bottom: 5px;
+    }
+
+    .result-box .confidence {
+      font-size: 1rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="camera-container">
+    <div class="camera-view">
+      <video id="cameraPreview" class="camera-preview" autoplay playsinline></video>
+      <img id="selectedImage" alt="Selected Image">
+      <button id="closeButton" class="close-button" onclick="resetView()">✕</button>
+    </div>
+
+    <!-- Result Box -->
+    <div class="result-box" id="resultBox">
+      <h4>Food Information</h4>
+      <div class="food-name" id="foodName"></div>
+      <div class="calories" id="calories"></div>
+      <div class="confidence" id="confidence"></div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="navigation-bar">
+      <a href="meal-history.html" class="nav-button active">
+        <i class="bi bi-bar-chart-fill"></i>
+      </a>
+      <button class="nav-button active" onclick="captureImage()">
+        <i class="bi bi-camera-fill"></i>
+      </button>
+      <button class="nav-button" onclick="openGallery()">
+        <i class="bi bi-images"></i>
+      </button>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="galleryInput" accept="image/*" style="display: none;">
+  </div>
+
+  <script>
+    const cameraPreview = document.getElementById('cameraPreview');
+    const selectedImage = document.getElementById('selectedImage');
+    const galleryInput = document.getElementById('galleryInput');
+    const resultBox = document.getElementById('resultBox');
+    const foodNameElement = document.getElementById('foodName');
+    const caloriesElement = document.getElementById('calories');
+    const confidenceElement = document.getElementById('confidence');
+    const closeButton = document.getElementById('closeButton');
+
+    function startCamera() {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then(function(stream) {
+            cameraPreview.srcObject = stream;
+          })
+          .catch(function(error) {
+            console.error('Error accessing camera: ', error);
+          });
+      }
+    }
+
+    function stopCamera() {
+      let stream = cameraPreview.srcObject;
+      if (stream) {
+        let tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+        cameraPreview.srcObject = null;
+      }
+    }
+
+    function captureImage() {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = cameraPreview.videoWidth;
+      canvas.height = cameraPreview.videoHeight;
+      context.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(function(blob) {
+        const formData = new FormData();
+        formData.append("file", blob, "captured_image.jpg");
+
+        selectedImage.src = URL.createObjectURL(blob);
+        selectedImage.style.display = "block";
+        closeButton.style.display = "flex"; // ✅ Show close button
+        stopCamera();
+
+        sendImageToBackend(formData);
+      }, 'image/jpeg');
+    }
+
+    function openGallery() {
+      galleryInput.click();
+    }
+
+    galleryInput.addEventListener("change", function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        selectedImage.src = URL.createObjectURL(file);
+        selectedImage.style.display = "block";
+        closeButton.style.display = "flex"; // ✅ Show close button
+        stopCamera();
+
+        sendImageToBackend(formData);
+      }
+    });
+
+    function sendImageToBackend(formData) {
+      fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.food_name) {
+          resultBox.style.display = 'block';
+          foodNameElement.textContent = `Food: ${data.food_name}`;
+          caloriesElement.textContent = `Calories: ${data.calories} kcal`;
+          confidenceElement.textContent = `Confidence: ${Math.round(data.confidence * 100)}%`;
+        } else {
+          alert(`Error: ${data.error}`);
+        }
+      })
+      .catch(error => {
+        alert(`Error: ${error}`);
+      });
+    }
+
+    // ✅ This will reset everything when user taps close
+    function resetView() {
+      selectedImage.style.display = "none";
+      closeButton.style.display = "none";
+      resultBox.style.display = "none";
+      startCamera();
+    }
+
+    window.onload = function() {
+      startCamera();
+    };
+  </script>
+</body>
+</html>

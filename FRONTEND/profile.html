@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - BiteScan</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* Global Styles */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #e3f3f9;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Header */
+    header {
+      background-color: #9bcfe2;
+      padding: 20px;
+      text-align: right;
+    }
+
+    header button {
+      background-color: black;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 15px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    /* Profile Container */
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .profile-picture {
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      border: 5px solid #9bcfe2;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .form-control {
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 1rem;
+      margin-bottom: 15px;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .form-label {
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .btn-edit {
+      margin: 20px 0;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      background-color: #9bcfe2;
+      color: white;
+    }
+
+    .navigation-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #9bcfe2;
+      padding: 10px 0;
+      display: flex;
+      justify-content: space-evenly;
+    }
+
+    .nav-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      background-color: white;
+      cursor: pointer;
+    }
+
+    .nav-button.active {
+      background-color: #000000;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="logoutBtn">LogOut</button>
+  </header>
+
+  <div class="container">
+    <!-- Profile Picture -->
+    <img src="uploads/<?php echo isset($_SESSION['profile_pic']) ? $_SESSION['profile_pic'] : 'default.png'; ?>" alt="Profile Picture" class="profile-picture" id="profilePic">
+    
+    <!-- Name Edit Section -->
+    <div class="form-group">
+      <label for="username" class="form-label">Name</label>
+      <input type="text" id="username" class="form-control" readonly>
+    </div>
+
+    <!-- Email Edit Section -->
+    <div class="form-group">
+      <label for="email" class="form-label">Email</label>
+      <input type="email" id="email" class="form-control" readonly>
+    </div>
+
+    <!-- Calories Limit Edit Section -->
+    <div class="form-group">
+      <label for="calories" class="form-label">CALORIES LIMIT</label>
+      <input type="number" id="calories" class="form-control" readonly>
+    </div>
+
+    <!-- Edit Profile Button -->
+    <button class="btn-edit" id="editProfileBtn">Edit Profile</button>
+  </div>
+
+  <div class="navigation-bar">
+    <a href="meal-history.html" class="nav-button">
+      <i class="bi bi-bar-chart-fill"></i>
+    </a>
+    <a href="ai-camera.html" class="nav-button">
+      <i class="bi bi-camera"></i>
+    </a> 
+    <a href="profile.html" class="nav-button active">
+      <i class="bi bi-person-circle"></i>
+    </a>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Fetch user profile data from profile.php
+      fetch("profile.php")
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Server error: " + response.status);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.success) {
+            document.getElementById("username").value = data.name;
+            document.getElementById("email").value = data.email;
+            document.getElementById("calories").value = data.calorie_limit;
+          } else {
+            alert("Error loading profile: " + data.error);
+            window.location.href = "index.html";
+          }
+        })
+        .catch(error => {
+          console.error("Error:", error);
+          alert("Failed to load profile. Please check your internet connection.");
+        });
+
+      // Logout function
+      document.getElementById("logoutBtn").addEventListener("click", function() {
+        fetch("logout.php")
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              window.location.href = "index.html"; // Redirect to login page
+            } else {
+              alert("Logout failed: " + data.error);
+            }
+          })
+          .catch(error => console.error("Error:", error));
+      });
+
+      // Profile Picture Edit
+      document.getElementById("profilePic").addEventListener("click", function() {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.click();
+        input.onchange = function(event) {
+          const file = event.target.files[0];
+          const reader = new FileReader();
+          reader.onloadend = function() {
+            document.getElementById("profilePic").src = reader.result;
+            // Optionally, upload the image here using a separate function.
+          };
+          reader.readAsDataURL(file);
+        };
+      });
+
+      // Edit Profile Button
+      let isEditing = false;
+      document.getElementById("editProfileBtn").addEventListener("click", function() {
+        const fields = [
+          document.getElementById("username"),
+          document.getElementById("email"),
+          document.getElementById("calories")
+        ];
+
+        isEditing = !isEditing;
+
+        // Toggle between editing and saving
+        fields.forEach(field => {
+          field.readOnly = !isEditing;
+        });
+
+        if (isEditing) {
+          this.innerText = "Save Profile";
+        } else {
+          this.innerText = "Edit Profile";
+          
+          // Save updated profile data
+          const name = document.getElementById("username").value;
+          const email = document.getElementById("email").value;
+          const calorieLimit = document.getElementById("calories").value;
+
+          fetch("updateProfile.php", {
+            method: "POST",
+            body: JSON.stringify({
+              name,
+              email,
+              calorie_limit: calorieLimit
+            }),
+            headers: {
+              "Content-Type": "application/json"
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert("Profile updated successfully!");
+              window.location.reload(); // Refresh the page after successful update
+            } else {
+              alert("Error updating profile: " + data.error);
+            }
+          })
+          .catch(error => {
+            console.error("Error:", error);
+            alert("Failed to save profile. Please try again.");
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
